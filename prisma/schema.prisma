@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  MANAGER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum FeedbackStatus {
+  PENDING
+  IN_ANALYSIS
+  APPROVED
+  REJECTED
+}
+
+enum FeedbackPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String     @unique
+  password  String
+  role      Role       @default(USER)
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relacionamentos
+  teamMembers      TeamMember[]
+  feedbacksGiven   Feedback[]       @relation("FeedbackFrom")
+  feedbacksReceived Feedback[]      @relation("FeedbackTo")
+  comments         FeedbackComment[]
+
+  @@map("users")
+}
+
+model Team {
+  id          Int    @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  members TeamMember[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id         Int    @id @default(autoincrement())
+  teamId     Int
+  userId     Int
+  roleInTeam String
+
+  // Relacionamentos
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+model Feedback {
+  id         Int              @id @default(autoincrement())
+  title      String
+  content    String
+  type       String
+  status     FeedbackStatus   @default(PENDING)
+  priority   FeedbackPriority @default(MEDIUM)
+  rating     Int?
+  fromUserId Int
+  toUserId   Int
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  // Relacionamentos
+  fromUser User              @relation("FeedbackFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User              @relation("FeedbackTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  comments FeedbackComment[]
+
+  @@map("feedbacks")
+}
+
+model FeedbackComment {
+  id         Int      @id @default(autoincrement())
+  content    String
+  userId     Int
+  feedbackId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@map("feedback_comments")
+}
